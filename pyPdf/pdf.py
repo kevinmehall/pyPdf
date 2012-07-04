@@ -1364,8 +1364,13 @@ class PageObject(DictionaryObject):
                       self.mediaBox.getLowerLeft_x ())
         sy = height / (self.mediaBox.getUpperRight_y() -
                        self.mediaBox.getLowerLeft_x ())
-        self.scale(sx, sy)
-
+        self.scale(float(sx), float(sy))
+    
+    def translate(self, tx, ty):
+        self.addTransformation([1,  0,
+                                 0,  1,
+                                 tx, ty])
+                                                 
     ##
     # Compresses the size of this page by joining all content streams and
     # applying a FlateDecode filter.
