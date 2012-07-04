@@ -1427,6 +1427,84 @@ class PageObject(DictionaryObject):
                         text += i
         return text
 
+    
+    def getOperations(self):
+      return ContentStream(self["/Contents"].getObject(), self.pdf).operations
+
+    ##
+    # Yields a stream of text elements along with their X and Y positions
+    # in the form of tuples (text, x, y)
+    def getTextElementPositions(self):
+      x = 0.0
+      y = 0.0
+      leading = None
+      for operands, operator in self.getOperations():
+        if operator in [b'TD', b'Td']:
+          # A TD or Td operator moves the text cursor
+          x += float(operands[0])
+          y += float(operands[1])
+          if operator == b'TD':
+            leading = float(operands[1])
+        elif operator == b'Tm':
+          # For now, this only handles translation matrices
+          x += float(operands[4])
+          y += float(operands[5])
+        elif operator == b'TL':
+          # TL sets the leading parameter
+          leading = float(operands[0])
+        elif operator == b'T*':
+          # T* moves down by the amount set in the leading parameter
+          y -= leading
+        elif operator == b"'":
+          # ' moves to the next line and displays text
+          y -= leading
+          yield (operands[0], int(round(x)), int(round(y)))
+        elif operator == b'BT':
+          # A "Begin Text" operator causes the cursor to reset to 0,0
+          x = 0.0
+          y = 0.0
+        elif operator == b'Tj':
+          # A Tj operator shows a text element
+          yield (operands[0], int(round(x)), int(round(y)))
+
+    ##
+    # This function parses the text from a PageObject into a list
+    # of rows ordered as they appear in the actual PDF page.
+    # The rows themselves are lists of strings.
+    # @param pixelTolerance Determines the maximum difference between two height values
+    #                       under which two text elements are considered to be
+    #                       on the same row.  The default value is 5 pixels.
+    def parseRows(self, pixelTolerance = 5):
+      data = []
+      
+      def findRow(data, height):
+        # Search the rows for a matching height
+        for row, elems in data:
+          if abs(row - height) <= pixelTolerance:
+            return (row, elems)
+        # If no row was found, create a new one, with the height parameter
+        # and an empty list of text elements on the row
+        newrow = (height, [])
+        data.append(newrow)
+        return newrow
+
+      def add(data, textobject):
+        text, x, y = textobject
+        findRow(data, y)[1].append( (text, x) )
+
+      for textob in self.getTextElementPositions():
+        add(data, textob)
+
+      # Sort the data according to position
+      for row in data:
+        row[1].sort(key = lambda x: x[1])
+      data.sort(key = lambda x: -x[0])
+
+      # Return the text only
+      return [[text.strip() for text, xpos in elems]
+                for height, elems in data]
+
+
     ##
     # A rectangle (RectangleObject), expressed in default user space units,
     # defining the boundaries of the physical medium on which the page is
