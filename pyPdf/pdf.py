@@ -1102,6 +1102,15 @@ class PageObject(DictionaryObject):
             FloatObject(f)], " cm"])
         return contents
     _addTransformationMatrix = staticmethod(_addTransformationMatrix)
+    
+    
+    def _addClip(contents, pdf, x, y, w, h):
+        contents = ContentStream(contents, pdf)
+        print 'clip', x, y, w, h
+        contents.operations.insert(0, [[FloatObject(x), FloatObject(y),
+            FloatObject(w), FloatObject(h)], " re W n"])
+        return contents
+    _addClip= staticmethod(_addClip)
 
     ##
     # Returns the /Contents object, or None if it doesn't exist.
@@ -1309,6 +1318,14 @@ class PageObject(DictionaryObject):
         if originalContent is not None:
             newContent = PageObject._addTransformationMatrix(
                 originalContent, self.pdf, ctm)
+            newContent = PageObject._pushPopGS(newContent, self.pdf)
+            self[NameObject('/Contents')] = newContent
+            
+    def addClip(self, x,y,w,h):
+        originalContent = self.getContents()
+        if originalContent is not None:
+            newContent = PageObject._addClip(
+                originalContent, self.pdf, x,y,w,h)
             newContent = PageObject._pushPopGS(newContent, self.pdf)
             self[NameObject('/Contents')] = newContent
 
