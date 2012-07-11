@@ -1459,6 +1459,10 @@ class PageObject(DictionaryObject):
           # ' moves to the next line and displays text
           y -= leading
           yield (operands[0], int(round(x)), int(round(y)))
+        elif operator == '"':
+          # ' moves to the next line and displays text
+          y -= leading
+          yield (operands[2], int(round(x)), int(round(y)))
         elif operator == b'BT':
           # A "Begin Text" operator causes the cursor to reset to 0,0
           x = 0.0
@@ -1466,6 +1470,16 @@ class PageObject(DictionaryObject):
         elif operator == b'Tj':
           # A Tj operator shows a text element
           yield (operands[0], int(round(x)), int(round(y)))
+        elif operator == b'TJ':
+          s = ""
+          for i in operands[0]:
+              if isinstance(i, TextStringObject):
+                  s+= i
+              elif isinstance(i, NumberObject):
+                  if abs(i) > 250:
+                      yield (s, int(round(x)), int(round(y)))
+                      s = ""
+          yield (s, int(round(x)), int(round(y)))
 
     ##
     # This function parses the text from a PageObject into a list
